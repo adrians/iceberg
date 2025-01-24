@@ -68,11 +68,16 @@ public abstract class SizeBasedDataRewriter extends SizeBasedFileRewriter<FileSc
 
   @Override
   protected Iterable<FileScanTask> filterFiles(Iterable<FileScanTask> tasks) {
-    return Iterables.filter(tasks, task -> wronglySized(task) || tooManyDeletes(task));
+    return Iterables.filter(
+        tasks, task -> wronglySized(task) || tooManyDeletes(task) || oldPartitioning(task));
   }
 
   private boolean tooManyDeletes(FileScanTask task) {
     return task.deletes() != null && task.deletes().size() >= deleteFileThreshold;
+  }
+
+  private boolean oldPartitioning(FileScanTask task) {
+    return task.file().specId() != table().spec().specId();
   }
 
   @Override
@@ -84,7 +89,12 @@ public abstract class SizeBasedDataRewriter extends SizeBasedFileRewriter<FileSc
     return enoughInputFiles(group)
         || enoughContent(group)
         || tooMuchContent(group)
-        || anyTaskHasTooManyDeletes(group);
+        || anyTaskHasTooManyDeletes(group)
+        || oldPartitioningGroup(group);
+  }
+
+  private boolean oldPartitioningGroup(List<FileScanTask> group) {
+    return group.stream().anyMatch(this::oldPartitioning);
   }
 
   private boolean anyTaskHasTooManyDeletes(List<FileScanTask> group) {
